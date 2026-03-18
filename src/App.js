@@ -153,7 +153,7 @@ function App() {
   const progress = calorieGoal
     ? Math.min(totalCalories / calorieGoal, 1)
     : 0;
-
+  const isOver = totalCalories > calorieGoal;
   const isExact = totalCalories === calorieGoal;
 
   return (
