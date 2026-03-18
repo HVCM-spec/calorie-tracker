@@ -154,7 +154,6 @@ function App() {
     ? Math.min(totalCalories / calorieGoal, 1)
     : 0;
 
-  const isOver = totalCalories > calorieGoal;
   const isExact = totalCalories === calorieGoal;
 
   return (
@@ -190,7 +189,7 @@ function App() {
             height: "150px",
             borderRadius: "50%",
             background: `conic-gradient(
-              ${isExact ? "green" : "red"} ${progress * 360}deg,
+              ${isExact ? "green" : isOver ? "red" : "orange"} ${progress * 360}deg,
               #eee ${progress * 360}deg
             )`,
             display: "flex",
