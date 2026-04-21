@@ -6,13 +6,15 @@ const defaultGoals = {
   protein: 160,
   carbs: 250,
   fat: 70,
-  water: 2500
+  water: 2500,
+  steps: 10000
 };
 
 const defaultDay = {
   workouts: [],
   meals: [],
   water: 0,
+  steps: 0,
   muscleGroup: ""
 };
 
@@ -41,6 +43,54 @@ function numberValue(value) {
   return Number(value) || 0;
 }
 
+function getWorkoutSets(workout) {
+  if (Array.isArray(workout.setDetails) && workout.setDetails.length > 0) {
+    return workout.setDetails.map(set => ({
+      reps: numberValue(set.reps),
+      weight: numberValue(set.weight)
+    }));
+  }
+
+  const setCount = Math.max(numberValue(workout.sets), 1);
+  return Array.from({ length: setCount }, () => ({
+    reps: numberValue(workout.reps),
+    weight: numberValue(workout.weight)
+  }));
+}
+
+function getWorkoutSummary(workout) {
+  const sets = getWorkoutSets(workout);
+  const totalReps = sets.reduce((sum, set) => sum + set.reps, 0);
+  const topWeight = sets.reduce((max, set) => Math.max(max, set.weight), 0);
+  const volume = sets.reduce(
+    (sum, set) => sum + set.reps * set.weight,
+    0
+  );
+
+  return {
+    setCount: sets.length,
+    totalReps,
+    topWeight,
+    volume
+  };
+}
+
+function getWeekKey(dateText) {
+  const date = new Date(`${dateText}T12:00:00`);
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() + 4 - day);
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  const week = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function formatDate(dateText) {
+  return new Date(`${dateText}T12:00:00`).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric"
+  });
+}
+
 function ProgressBar({ label, value, target, unit }) {
   const percent = target > 0 ? Math.min((value / target) * 100, 100) : 0;
 
@@ -57,6 +107,70 @@ function ProgressBar({ label, value, target, unit }) {
       <div className="progress-track">
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
+    </div>
+  );
+}
+
+function ProgressionChart({ points }) {
+  if (points.length === 0) {
+    return (
+      <p className="empty-state">
+        Log this exercise on different dates to see a weight trend here.
+      </p>
+    );
+  }
+
+  const chartWidth = Math.max(340, points.length * 96);
+  const chartHeight = 220;
+  const padding = 32;
+  const maxWeight = Math.max(...points.map(point => point.weight), 1);
+  const minWeight = Math.min(...points.map(point => point.weight), 0);
+  const range = Math.max(maxWeight - minWeight, 1);
+  const plotWidth = chartWidth - padding * 2;
+  const plotHeight = 128;
+
+  const coordinates = points.map((point, index) => {
+    const x =
+      points.length === 1
+        ? chartWidth / 2
+        : padding + (plotWidth / (points.length - 1)) * index;
+    const y = padding + ((maxWeight - point.weight) / range) * plotHeight;
+    return { ...point, x, y };
+  });
+
+  const line = coordinates.map(point => `${point.x},${point.y}`).join(" ");
+
+  return (
+    <div className="chart-scroll" aria-label="Exercise progression line chart">
+      <svg
+        className="line-chart"
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+        style={{ width: chartWidth }}
+        role="img"
+      >
+        <line
+          className="chart-axis"
+          x1={padding}
+          y1={padding + plotHeight}
+          x2={chartWidth - padding}
+          y2={padding + plotHeight}
+        />
+        <polyline className="chart-line" points={line} />
+        {coordinates.map(point => (
+          <g key={point.weekKey}>
+            <circle className="chart-point" cx={point.x} cy={point.y} r="5" />
+            <text className="chart-value" x={point.x} y={point.y - 12}>
+              {point.weight}kg
+            </text>
+            <text className="chart-label" x={point.x} y={padding + plotHeight + 24}>
+              {point.label}
+            </text>
+            <text className="chart-date" x={point.x} y={padding + plotHeight + 42}>
+              {point.dateLabel}
+            </text>
+          </g>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -84,10 +198,10 @@ function App() {
 
   const [workoutForm, setWorkoutForm] = useState({
     exercise: "",
-    sets: "",
-    reps: "",
-    weight: ""
+    setCount: "1",
+    setDetails: [{ reps: "", weight: "" }]
   });
+  const [progressExercise, setProgressExercise] = useState("");
 
   useEffect(() => {
     localStorage.setItem("gymData", JSON.stringify(data));
@@ -117,36 +231,51 @@ function App() {
     [today.meals]
   );
 
-  const weeklyStats = useMemo(() => {
-    const selected = new Date(`${selectedDate}T12:00:00`);
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(selected);
-      date.setDate(selected.getDate() - (6 - index));
-      const key = date.toISOString().split("T")[0];
-      const day = normaliseDay(data[key]);
-      const calories = day.meals.reduce(
-        (sum, meal) => sum + numberValue(meal.calories),
-        0
-      );
-
-      return {
-        key,
-        label: date.toLocaleDateString(undefined, { weekday: "short" }),
-        calories,
-        water: day.water,
-        workouts: day.workouts.length
-      };
-    });
-  }, [data, selectedDate]);
-
   const workoutVolume = today.workouts.reduce(
-    (sum, workout) =>
-      sum +
-      numberValue(workout.sets) *
-        numberValue(workout.reps) *
-        numberValue(workout.weight),
+    (sum, workout) => sum + getWorkoutSummary(workout).volume,
     0
   );
+
+  const exerciseOptions = useMemo(() => {
+    const presetExercises = Object.values(presets).flat();
+    const loggedExercises = Object.values(data).flatMap(day =>
+      normaliseDay(day).workouts.map(workout => workout.exercise)
+    );
+    return [...new Set([...presetExercises, ...loggedExercises].filter(Boolean))];
+  }, [data, presets]);
+
+  const selectedProgressExercise = progressExercise || exerciseOptions[0] || "";
+
+  const progressionPoints = useMemo(() => {
+    if (!selectedProgressExercise) return [];
+
+    const weeklyBest = {};
+    Object.entries(data).forEach(([date, dayData]) => {
+      const day = normaliseDay(dayData);
+      day.workouts
+        .filter(workout => workout.exercise === selectedProgressExercise)
+        .forEach(workout => {
+          const summary = getWorkoutSummary(workout);
+          const weekKey = getWeekKey(date);
+          const current = weeklyBest[weekKey];
+          if (!current || summary.topWeight > current.weight) {
+            weeklyBest[weekKey] = {
+              weekKey,
+              date,
+              weight: summary.topWeight
+            };
+          }
+        });
+    });
+
+    return Object.values(weeklyBest)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((point, index) => ({
+        ...point,
+        label: `Week ${index + 1}`,
+        dateLabel: formatDate(point.date)
+      }));
+  }, [data, selectedProgressExercise]);
 
   function updateDay(updater) {
     setData(prev => {
@@ -172,11 +301,49 @@ function App() {
     });
   }
 
+  function changeSetCount(event) {
+    const setCount = Math.max(1, numberValue(event.target.value));
+    setWorkoutForm(prev => {
+      const nextDetails = Array.from({ length: setCount }, (_, index) => (
+        prev.setDetails[index] || { reps: "", weight: "" }
+      ));
+
+      return {
+        ...prev,
+        setCount: event.target.value,
+        setDetails: nextDetails
+      };
+    });
+  }
+
+  function updateWorkoutSet(index, field, value) {
+    setWorkoutForm(prev => ({
+      ...prev,
+      setDetails: prev.setDetails.map((set, setIndex) =>
+        setIndex === index ? { ...set, [field]: value } : set
+      )
+    }));
+  }
+
   function addWater(amount) {
     updateDay(day => ({
       ...day,
       water: Math.max(0, day.water + amount),
       muscleGroup
+    }));
+  }
+
+  function addSteps(amount) {
+    updateDay(day => ({
+      ...day,
+      steps: Math.max(0, numberValue(day.steps) + amount)
+    }));
+  }
+
+  function setSteps(value) {
+    updateDay(day => ({
+      ...day,
+      steps: Math.max(0, numberValue(value))
     }));
   }
 
@@ -215,9 +382,11 @@ function App() {
     const workout = {
       id: crypto.randomUUID(),
       exercise: workoutForm.exercise.trim(),
-      sets: numberValue(workoutForm.sets),
-      reps: numberValue(workoutForm.reps),
-      weight: numberValue(workoutForm.weight),
+      sets: workoutForm.setDetails.length,
+      setDetails: workoutForm.setDetails.map(set => ({
+        reps: numberValue(set.reps),
+        weight: numberValue(set.weight)
+      })),
       muscleGroup
     };
 
@@ -227,7 +396,11 @@ function App() {
       workouts: [...day.workouts, workout]
     }));
 
-    setWorkoutForm({ exercise: "", sets: "", reps: "", weight: "" });
+    setWorkoutForm({
+      exercise: "",
+      setCount: "1",
+      setDetails: [{ reps: "", weight: "" }]
+    });
     setPage("dashboard");
   }
 
@@ -282,11 +455,6 @@ function App() {
   }
 
   const caloriesLeft = Math.max(goals.calories - nutritionTotals.calories, 0);
-  const bestDay = weeklyStats.reduce(
-    (best, day) => (day.workouts > best.workouts ? day : best),
-    weeklyStats[0]
-  );
-
   return (
     <main className="app-shell">
       <header className="hero">
@@ -339,6 +507,11 @@ function App() {
               <strong>{today.workouts.length}</strong>
               <small>{Math.round(workoutVolume)}kg volume</small>
             </article>
+            <article className="metric-card">
+              <span>Steps</span>
+              <strong>{today.steps}</strong>
+              <small>{Math.round((today.steps / goals.steps) * 100) || 0}% goal</small>
+            </article>
           </div>
 
           <section className="panel">
@@ -366,6 +539,12 @@ function App() {
               target={goals.water}
               unit="ml"
             />
+            <ProgressBar
+              label="Steps"
+              value={today.steps}
+              target={goals.steps}
+              unit=""
+            />
           </section>
 
           <section className="quick-actions">
@@ -376,27 +555,48 @@ function App() {
 
           <section className="panel">
             <div className="section-heading">
-              <h2>Last 7 days</h2>
-              <span>{bestDay?.label || "Today"} was your busiest lift day</span>
+              <h2>Steps</h2>
+              <span>Daily walking total</span>
             </div>
-            <div className="week-chart" aria-label="Seven day calorie chart">
-              {weeklyStats.map(day => (
-                <div key={day.key} className="day-bar">
-                  <div className="bar-wrap">
-                    <div
-                      className="bar-fill"
-                      style={{
-                        height: `${Math.min(
-                          (day.calories / goals.calories) * 100,
-                          100
-                        )}%`
-                      }}
-                    />
-                  </div>
-                  <span>{day.label}</span>
-                </div>
-              ))}
+            <div className="inline-form">
+              <input
+                aria-label="Steps walked today"
+                inputMode="numeric"
+                type="number"
+                value={today.steps}
+                onChange={event => setSteps(event.target.value)}
+              />
+              <button className="primary-button" onClick={() => addSteps(1000)}>
+                +1000
+              </button>
             </div>
+            <section className="quick-actions split-actions">
+              <button onClick={() => addSteps(500)}>+ 500</button>
+              <button onClick={() => addSteps(2000)}>+ 2000</button>
+              <button onClick={() => addSteps(-500)}>- 500</button>
+            </section>
+          </section>
+
+          <section className="panel">
+            <div className="section-heading">
+              <h2>Exercise progress</h2>
+              <span>Top weight by week</span>
+            </div>
+            <select
+              value={selectedProgressExercise}
+              onChange={event => setProgressExercise(event.target.value)}
+            >
+              {exerciseOptions.length === 0 ? (
+                <option value="">Add preset exercises first</option>
+              ) : (
+                exerciseOptions.map(exercise => (
+                  <option key={exercise} value={exercise}>
+                    {exercise}
+                  </option>
+                ))
+              )}
+            </select>
+            <ProgressionChart points={progressionPoints} />
           </section>
 
           <section className="panel">
@@ -414,9 +614,15 @@ function App() {
                   <article className="list-item" key={workout.id || index}>
                     <div>
                       <strong>{workout.exercise}</strong>
-                      <span>
-                        {workout.sets} x {workout.reps} at {workout.weight}kg
-                      </span>
+                      {(() => {
+                        const summary = getWorkoutSummary(workout);
+                        return (
+                          <span>
+                            {summary.setCount} sets, {summary.totalReps} reps,
+                            top {summary.topWeight}kg
+                          </span>
+                        );
+                      })()}
                     </div>
                     <button
                       aria-label={`Delete ${workout.exercise}`}
@@ -586,29 +792,41 @@ function App() {
                 onChange={handleWorkoutChange}
               />
               <input
-                name="sets"
+                name="setCount"
                 inputMode="numeric"
                 type="number"
                 placeholder="Sets"
-                value={workoutForm.sets}
-                onChange={handleWorkoutChange}
+                min="1"
+                value={workoutForm.setCount}
+                onChange={changeSetCount}
               />
-              <input
-                name="reps"
-                inputMode="numeric"
-                type="number"
-                placeholder="Reps"
-                value={workoutForm.reps}
-                onChange={handleWorkoutChange}
-              />
-              <input
-                name="weight"
-                inputMode="decimal"
-                type="number"
-                placeholder="Weight (kg)"
-                value={workoutForm.weight}
-                onChange={handleWorkoutChange}
-              />
+              <div className="set-list">
+                {workoutForm.setDetails.map((set, index) => (
+                  <div className="set-row" key={index}>
+                    <span>Set {index + 1}</span>
+                    <input
+                      aria-label={`Set ${index + 1} reps`}
+                      inputMode="numeric"
+                      type="number"
+                      placeholder="Reps"
+                      value={set.reps}
+                      onChange={event =>
+                        updateWorkoutSet(index, "reps", event.target.value)
+                      }
+                    />
+                    <input
+                      aria-label={`Set ${index + 1} weight`}
+                      inputMode="decimal"
+                      type="number"
+                      placeholder="Kg"
+                      value={set.weight}
+                      onChange={event =>
+                        updateWorkoutSet(index, "weight", event.target.value)
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
               <button className="primary-button" type="submit">
                 Save workout
               </button>

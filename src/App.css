@@ -127,7 +127,7 @@ select {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -223,6 +223,10 @@ select {
   gap: 8px;
 }
 
+.split-actions {
+  margin-top: 10px;
+}
+
 .quick-actions button,
 .ghost-button,
 .primary-button,
@@ -290,6 +294,27 @@ select {
   gap: 10px;
 }
 
+.set-list {
+  display: grid;
+  gap: 8px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 9px;
+  border-radius: 8px;
+  background: #121819;
+}
+
+.set-row span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .inline-form {
   display: grid;
   grid-template-columns: 1fr 84px;
@@ -351,6 +376,61 @@ select {
   text-transform: capitalize;
 }
 
+.chart-scroll {
+  overflow-x: auto;
+  margin-top: 14px;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.line-chart {
+  display: block;
+  height: 220px;
+  min-width: 100%;
+}
+
+.chart-axis {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.chart-point {
+  fill: var(--gold);
+  stroke: #0b1112;
+  stroke-width: 3;
+}
+
+.chart-value,
+.chart-label,
+.chart-date {
+  text-anchor: middle;
+}
+
+.chart-value {
+  fill: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.chart-label {
+  fill: var(--text);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.chart-date {
+  fill: var(--muted);
+  font-size: 0.68rem;
+}
+
 @media (max-width: 420px) {
   .app-shell {
     padding-inline: 10px;
@@ -364,11 +444,11 @@ select {
     width: 100%;
   }
 
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-
   .tab {
     font-size: 0.75rem;
+  }
+
+  .set-row {
+    grid-template-columns: 1fr;
   }
 }
