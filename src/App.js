@@ -13,6 +13,7 @@ const defaultGoals = {
 const defaultDay = {
   workouts: [],
   meals: [],
+  cardio: [],
   water: 0,
   steps: 0,
   muscleGroup: ""
@@ -35,7 +36,8 @@ function normaliseDay(day = {}) {
     ...defaultDay,
     ...day,
     workouts: Array.isArray(day.workouts) ? day.workouts : [],
-    meals: Array.isArray(day.meals) ? day.meals : []
+    meals: Array.isArray(day.meals) ? day.meals : [],
+    cardio: Array.isArray(day.cardio) ? day.cardio : []
   };
 }
 
@@ -196,6 +198,12 @@ function App() {
     fat: ""
   });
 
+  const [cardioForm, setCardioForm] = useState({
+    activity: "",
+    minutes: "",
+    calories: ""
+  });
+
   const [workoutForm, setWorkoutForm] = useState({
     exercise: "",
     setCount: "1",
@@ -229,6 +237,18 @@ function App() {
         { calories: 0, protein: 0, carbs: 0, fat: 0 }
       ),
     [today.meals]
+  );
+
+  const cardioTotals = useMemo(
+    () =>
+      today.cardio.reduce(
+        (totals, entry) => ({
+          minutes: totals.minutes + numberValue(entry.minutes),
+          calories: totals.calories + numberValue(entry.calories)
+        }),
+        { minutes: 0, calories: 0 }
+      ),
+    [today.cardio]
   );
 
   const workoutVolume = today.workouts.reduce(
@@ -294,6 +314,13 @@ function App() {
     });
   }
 
+  function handleCardioChange(event) {
+    setCardioForm({
+      ...cardioForm,
+      [event.target.name]: event.target.value
+    });
+  }
+
   function handleWorkoutChange(event) {
     setWorkoutForm({
       ...workoutForm,
@@ -344,6 +371,32 @@ function App() {
     updateDay(day => ({
       ...day,
       steps: Math.max(0, numberValue(value))
+    }));
+  }
+
+  function saveCardio(event) {
+    event.preventDefault();
+    if (!cardioForm.activity.trim() && !cardioForm.minutes) return;
+
+    const entry = {
+      id: crypto.randomUUID(),
+      activity: cardioForm.activity.trim() || "Cardio",
+      minutes: numberValue(cardioForm.minutes),
+      calories: numberValue(cardioForm.calories)
+    };
+
+    updateDay(day => ({
+      ...day,
+      cardio: [...day.cardio, entry]
+    }));
+
+    setCardioForm({ activity: "", minutes: "", calories: "" });
+  }
+
+  function deleteCardio(id) {
+    updateDay(day => ({
+      ...day,
+      cardio: day.cardio.filter((entry, index) => (entry.id || index) !== id)
     }));
   }
 
@@ -475,6 +528,7 @@ function App() {
         {[
           ["dashboard", "Home"],
           ["nutrition", "Food"],
+          ["cardio", "Cardio"],
           ["workout", "Lift"],
           ["presets", "Plans"],
           ["settings", "Goals"]
@@ -511,6 +565,11 @@ function App() {
               <span>Steps</span>
               <strong>{today.steps}</strong>
               <small>{Math.round((today.steps / goals.steps) * 100) || 0}% goal</small>
+            </article>
+            <article className="metric-card">
+              <span>Cardio</span>
+              <strong>{cardioTotals.minutes} min</strong>
+              <small>{cardioTotals.calories} cal burned</small>
             </article>
           </div>
 
@@ -628,6 +687,74 @@ function App() {
                       aria-label={`Delete ${workout.exercise}`}
                       className="icon-button"
                       onClick={() => deleteWorkout(workout.id || index)}
+                    >
+                      x
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </section>
+      )}
+
+      {page === "cardio" && (
+        <section className="stack">
+          <section className="panel">
+            <h2>Add cardio</h2>
+            <form className="form-grid" onSubmit={saveCardio}>
+              <input
+                name="activity"
+                placeholder="Activity, e.g. treadmill, bike, run"
+                value={cardioForm.activity}
+                onChange={handleCardioChange}
+              />
+              <input
+                name="minutes"
+                inputMode="numeric"
+                type="number"
+                placeholder="Minutes"
+                value={cardioForm.minutes}
+                onChange={handleCardioChange}
+              />
+              <input
+                name="calories"
+                inputMode="numeric"
+                type="number"
+                placeholder="Calories burned (optional)"
+                value={cardioForm.calories}
+                onChange={handleCardioChange}
+              />
+              <button className="primary-button" type="submit">
+                Save cardio
+              </button>
+            </form>
+          </section>
+
+          <section className="panel">
+            <div className="section-heading">
+              <h2>Cardio today</h2>
+              <span>
+                {cardioTotals.minutes} min, {cardioTotals.calories} cal
+              </span>
+            </div>
+            {today.cardio.length === 0 ? (
+              <p className="empty-state">Cardio you add will appear here.</p>
+            ) : (
+              <div className="item-list">
+                {today.cardio.map((entry, index) => (
+                  <article className="list-item" key={entry.id || index}>
+                    <div>
+                      <strong>{entry.activity}</strong>
+                      <span>
+                        {entry.minutes} min
+                        {entry.calories ? `, ${entry.calories} cal burned` : ""}
+                      </span>
+                    </div>
+                    <button
+                      aria-label={`Delete ${entry.activity}`}
+                      className="icon-button"
+                      onClick={() => deleteCardio(entry.id || index)}
                     >
                       x
                     </button>

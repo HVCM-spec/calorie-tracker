@@ -96,15 +96,17 @@ select {
   position: sticky;
   top: 0;
   z-index: 3;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
   gap: 6px;
+  overflow-x: auto;
   padding: 10px 0 14px;
   background: rgba(16, 20, 21, 0.92);
   backdrop-filter: blur(14px);
+  -webkit-overflow-scrolling: touch;
 }
 
 .tab {
+  flex: 0 0 76px;
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -445,6 +447,7 @@ select {
   }
 
   .tab {
+    flex-basis: 68px;
     font-size: 0.75rem;
   }
 
