@@ -316,10 +316,10 @@ function estimateMealLocally(description) {
   };
 }
 
-function ProgressBar({ label, value, target, unit }) {
+function ProgressBar({ label, value, target, unit, penalizeOverage = false }) {
   const percent = target > 0 ? Math.min((value / target) * 100, 100) : 0;
   const progressRatio = target > 0 ? value / target : 0;
-  const isOverTarget = progressRatio > 1;
+  const isOverTarget = penalizeOverage && progressRatio > 1;
   const cappedRatio = Math.min(progressRatio, 1);
   const hue = Math.round(cappedRatio * 120);
   const overRatio = Math.min(progressRatio - 1, 1);
@@ -1069,6 +1069,7 @@ function App() {
               value={nutritionTotals.calories}
               target={goals.calories}
               unit=""
+              penalizeOverage
             />
             <ProgressBar
               label="Protein"
@@ -1478,6 +1479,7 @@ function App() {
               value={nutritionTotals.calories}
               target={goals.calories}
               unit=""
+              penalizeOverage
             />
             <ProgressBar
               label="Protein"
@@ -1490,12 +1492,14 @@ function App() {
               value={nutritionTotals.carbs}
               target={goals.carbs}
               unit="g"
+              penalizeOverage
             />
             <ProgressBar
               label="Fat"
               value={nutritionTotals.fat}
               target={goals.fat}
               unit="g"
+              penalizeOverage
             />
           </section>
 
