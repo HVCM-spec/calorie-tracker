@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 const defaultGoals = {
   calories: 2200,
@@ -184,6 +186,7 @@ function App() {
     ...defaultGoals,
     ...safeJson("dailyGoals", {})
   }));
+  const [syncState, setSyncState] = useState("Checking backup...");
   const [selectedDate, setSelectedDate] = useState(todayString());
   const [page, setPage] = useState("dashboard");
   const [muscleGroup, setMuscleGroup] = useState("");
@@ -210,18 +213,133 @@ function App() {
     setDetails: [{ reps: "", weight: "" }]
   });
   const [progressExercise, setProgressExercise] = useState("");
+  const hasLoadedCloudRef = useRef(false);
+  const skipCloudSaveRef = useRef(false);
+  const initialSnapshotRef = useRef({
+    data,
+    presets,
+    goals
+  });
+
+  function persistLocalSnapshot(nextData, nextPresets, nextGoals, updatedAt) {
+    localStorage.setItem("gymData", JSON.stringify(nextData));
+    localStorage.setItem("presets", JSON.stringify(nextPresets));
+    localStorage.setItem("dailyGoals", JSON.stringify(nextGoals));
+    localStorage.setItem("fitnessUpdatedAt", String(updatedAt));
+  }
 
   useEffect(() => {
-    localStorage.setItem("gymData", JSON.stringify(data));
-  }, [data]);
+    let isActive = true;
+
+    async function loadCloudBackup() {
+      try {
+        const remoteDoc = await getDoc(doc(db, "fitnessBackups", "primary"));
+        if (!isActive) return;
+
+        const localUpdatedAt = numberValue(
+          localStorage.getItem("fitnessUpdatedAt")
+        );
+
+        if (remoteDoc.exists()) {
+          const remoteData = remoteDoc.data();
+          const remoteUpdatedAt = numberValue(remoteData.updatedAt);
+
+          if (remoteUpdatedAt > localUpdatedAt) {
+            const remoteGoals = {
+              ...defaultGoals,
+              ...(remoteData.goals || {})
+            };
+
+            skipCloudSaveRef.current = true;
+            persistLocalSnapshot(
+              remoteData.data || {},
+              remoteData.presets || {},
+              remoteGoals,
+              remoteUpdatedAt
+            );
+            setData(remoteData.data || {});
+            setPresets(remoteData.presets || {});
+            setGoals(remoteGoals);
+            setSyncState("Cloud backup restored");
+            hasLoadedCloudRef.current = true;
+            return;
+          }
+        }
+
+        if (localUpdatedAt > 0) {
+          await setDoc(
+            doc(db, "fitnessBackups", "primary"),
+            {
+              data: initialSnapshotRef.current.data,
+              presets: initialSnapshotRef.current.presets,
+              goals: initialSnapshotRef.current.goals,
+              updatedAt: localUpdatedAt
+            },
+            { merge: true }
+          );
+        }
+
+        if (isActive) {
+          setSyncState("Cloud backup on");
+        }
+      } catch {
+        if (isActive) {
+          setSyncState("Saved on this browser only");
+        }
+      } finally {
+        hasLoadedCloudRef.current = true;
+      }
+    }
+
+    loadCloudBackup();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem("presets", JSON.stringify(presets));
-  }, [presets]);
+    if (!hasLoadedCloudRef.current) return;
 
-  useEffect(() => {
-    localStorage.setItem("dailyGoals", JSON.stringify(goals));
-  }, [goals]);
+    if (skipCloudSaveRef.current) {
+      skipCloudSaveRef.current = false;
+      return;
+    }
+
+    const updatedAt = Date.now();
+    persistLocalSnapshot(data, presets, goals, updatedAt);
+
+    let isActive = true;
+
+    async function saveCloudBackup() {
+      try {
+        setSyncState("Saving backup...");
+        await setDoc(
+          doc(db, "fitnessBackups", "primary"),
+          {
+            data,
+            presets,
+            goals,
+            updatedAt
+          },
+          { merge: true }
+        );
+        if (isActive) {
+          setSyncState("Cloud backup on");
+        }
+      } catch {
+        if (isActive) {
+          setSyncState("Saved on this browser only");
+        }
+      }
+    }
+
+    saveCloudBackup();
+
+    return () => {
+      isActive = false;
+    };
+  }, [data, presets, goals]);
 
   const today = normaliseDay(data[selectedDate]);
 
@@ -1032,6 +1150,7 @@ function App() {
       {page === "settings" && (
         <section className="panel">
           <h2>Daily goals</h2>
+          <p className="sync-status">{syncState}</p>
           <div className="form-grid">
             {Object.keys(defaultGoals).map(goal => (
               <label className="field-label" key={goal}>

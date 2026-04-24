@@ -378,6 +378,12 @@ select {
   text-transform: capitalize;
 }
 
+.sync-status {
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .chart-scroll {
   overflow-x: auto;
   margin-top: 14px;
