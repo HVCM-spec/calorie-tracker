@@ -206,6 +206,10 @@ function App() {
     minutes: "",
     calories: ""
   });
+  const [aiFoodPrompt, setAiFoodPrompt] = useState("");
+  const [aiEstimate, setAiEstimate] = useState(null);
+  const [aiError, setAiError] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [workoutForm, setWorkoutForm] = useState({
     exercise: "",
@@ -437,6 +441,51 @@ function App() {
       ...cardioForm,
       [event.target.name]: event.target.value
     });
+  }
+
+  function applyAiEstimateToMeal() {
+    if (!aiEstimate) return;
+
+    setMealForm({
+      name: aiEstimate.name || "Estimated meal",
+      calories: String(numberValue(aiEstimate.calories)),
+      protein: String(numberValue(aiEstimate.protein)),
+      carbs: String(numberValue(aiEstimate.carbs)),
+      fat: String(numberValue(aiEstimate.fat))
+    });
+    setPage("nutrition");
+  }
+
+  async function estimateMacros(event) {
+    event.preventDefault();
+    const description = aiFoodPrompt.trim();
+    if (!description) return;
+
+    setAiLoading(true);
+    setAiError("");
+
+    try {
+      const response = await fetch("/api/estimate-macros", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ description })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Could not estimate that meal.");
+      }
+
+      setAiEstimate(result);
+    } catch (error) {
+      setAiEstimate(null);
+      setAiError(error.message || "Could not estimate that meal.");
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   function handleWorkoutChange(event) {
@@ -886,6 +935,69 @@ function App() {
 
       {page === "nutrition" && (
         <section className="stack">
+          <section className="panel">
+            <div className="section-heading">
+              <h2>AI estimate</h2>
+              <span>Describe what you ate</span>
+            </div>
+            <form className="form-grid" onSubmit={estimateMacros}>
+              <textarea
+                className="app-textarea"
+                placeholder="Example: 3 eggs, 2 slices of toast, and a coffee with milk"
+                value={aiFoodPrompt}
+                onChange={event => setAiFoodPrompt(event.target.value)}
+                rows="4"
+              />
+              <button className="primary-button" type="submit" disabled={aiLoading}>
+                {aiLoading ? "Estimating..." : "Estimate macros"}
+              </button>
+            </form>
+            {aiError ? <p className="error-text">{aiError}</p> : null}
+            {aiEstimate ? (
+              <div className="ai-result">
+                <div className="ai-result-header">
+                  <strong>{aiEstimate.name}</strong>
+                  <button
+                    className="ghost-button"
+                    type="button"
+                    onClick={applyAiEstimateToMeal}
+                  >
+                    Use in meal form
+                  </button>
+                </div>
+                <div className="ai-macro-grid">
+                  <div>
+                    <span>Calories</span>
+                    <strong>{aiEstimate.calories}</strong>
+                  </div>
+                  <div>
+                    <span>Protein</span>
+                    <strong>{aiEstimate.protein}g</strong>
+                  </div>
+                  <div>
+                    <span>Carbs</span>
+                    <strong>{aiEstimate.carbs}g</strong>
+                  </div>
+                  <div>
+                    <span>Fat</span>
+                    <strong>{aiEstimate.fat}g</strong>
+                  </div>
+                </div>
+                {Array.isArray(aiEstimate.assumptions) &&
+                aiEstimate.assumptions.length > 0 ? (
+                  <div className="ai-assumptions">
+                    <span>Assumptions</span>
+                    <ul>
+                      {aiEstimate.assumptions.map((assumption, index) => (
+                        <li key={`${assumption}-${index}`}>{assumption}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+
           <section className="panel">
             <h2>Add meal</h2>
             <form className="form-grid" onSubmit={saveMeal}>
