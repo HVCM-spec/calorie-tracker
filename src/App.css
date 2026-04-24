@@ -445,6 +445,46 @@ select:focus,
   font-style: normal;
 }
 
+.section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.section-toggle div {
+  display: grid;
+  gap: 4px;
+}
+
+.section-toggle h2 {
+  margin-bottom: 0;
+}
+
+.section-toggle span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.section-toggle strong {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .list-item div {
   display: grid;
   gap: 4px;

@@ -446,6 +446,7 @@ function App() {
   const [newGroup, setNewGroup] = useState("");
   const [exerciseInputs, setExerciseInputs] = useState({});
   const [expandedWorkoutId, setExpandedWorkoutId] = useState(null);
+  const [savedFoodsOpen, setSavedFoodsOpen] = useState(false);
 
   const [mealForm, setMealForm] = useState({
     name: "",
@@ -1304,15 +1305,29 @@ function App() {
       {page === "nutrition" && (
         <section className="stack">
           <section className="panel">
-            <div className="section-heading">
-              <h2>Saved foods</h2>
-              <span>{savedFoods.length} ready to add</span>
-            </div>
+            <button
+              className="section-toggle"
+              type="button"
+              onClick={() => setSavedFoodsOpen(open => !open)}
+            >
+              <div>
+                <h2>Saved foods</h2>
+                <span>
+                  {savedFoods.length} ready to add
+                  {savedFoods.length > 0
+                    ? savedFoodsOpen
+                      ? " - tap to hide"
+                      : " - tap to show"
+                    : ""}
+                </span>
+              </div>
+              <strong>{savedFoodsOpen ? "-" : "+"}</strong>
+            </button>
             {savedFoods.length === 0 ? (
               <p className="empty-state">
                 Save foods you eat often so you can add them in one tap.
               </p>
-            ) : (
+            ) : savedFoodsOpen ? (
               <div className="item-list">
                 {savedFoods.map((food, index) => (
                   <article className="list-item" key={food.id || index}>
@@ -1350,7 +1365,7 @@ function App() {
                   </article>
                 ))}
               </div>
-            )}
+            ) : null}
           </section>
 
           <section className="panel">
