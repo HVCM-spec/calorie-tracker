@@ -21,6 +21,8 @@ const defaultDay = {
   muscleGroup: ""
 };
 
+const WALKING_CALORIES_PER_STEP = 0.04;
+
 function safeJson(key, fallback) {
   try {
     return JSON.parse(localStorage.getItem(key)) || fallback;
@@ -595,7 +597,7 @@ function App() {
     [today.meals]
   );
 
-  const cardioTotals = useMemo(
+  const cardioSessionTotals = useMemo(
     () =>
       today.cardio.reduce(
         (totals, entry) => ({
@@ -606,6 +608,9 @@ function App() {
       ),
     [today.cardio]
   );
+
+  const walkingCalories = Math.round(today.steps * WALKING_CALORIES_PER_STEP);
+  const totalCardioCalories = cardioSessionTotals.calories + walkingCalories;
 
   const workoutVolume = today.workouts.reduce(
     (sum, workout) => sum + getWorkoutSummary(workout).volume,
@@ -1007,8 +1012,8 @@ function App() {
             </article>
             <article className="metric-card">
               <span>Cardio</span>
-              <strong>{cardioTotals.minutes} min</strong>
-              <small>{cardioTotals.calories} cal burned</small>
+              <strong>{cardioSessionTotals.minutes} min</strong>
+              <small>{totalCardioCalories} cal incl. walking</small>
             </article>
           </div>
 
@@ -1140,11 +1145,18 @@ function App() {
       {page === "cardio" && (
         <section className="stack">
           <section className="panel">
-            <h2>Add cardio</h2>
+            <div className="section-heading">
+              <h2>Cardio sessions</h2>
+              <span>Use steps for normal walking</span>
+            </div>
+            <p className="helper-text">
+              Log deliberate sessions here like rowing, stair climber, runs, bike, or
+              treadmill. Your steps already add an estimated walking calorie burn below.
+            </p>
             <form className="form-grid" onSubmit={saveCardio}>
               <input
                 name="activity"
-                placeholder="Activity, e.g. treadmill, bike, run"
+                placeholder="Activity, e.g. row, stair climber, bike"
                 value={cardioForm.activity}
                 onChange={handleCardioChange}
               />
@@ -1165,7 +1177,7 @@ function App() {
                 onChange={handleCardioChange}
               />
               <button className="primary-button" type="submit">
-                Save cardio
+                Save session
               </button>
             </form>
           </section>
@@ -1174,11 +1186,24 @@ function App() {
             <div className="section-heading">
               <h2>Cardio today</h2>
               <span>
-                {cardioTotals.minutes} min, {cardioTotals.calories} cal
+                {cardioSessionTotals.minutes} min, {totalCardioCalories} cal est
               </span>
             </div>
+            <div className="split-stat">
+              <div>
+                <span>From cardio sessions</span>
+                <strong>{cardioSessionTotals.calories} cal</strong>
+              </div>
+              <div>
+                <span>From {today.steps} steps</span>
+                <strong>{walkingCalories} cal est</strong>
+              </div>
+            </div>
             {today.cardio.length === 0 ? (
-              <p className="empty-state">Cardio you add will appear here.</p>
+              <p className="empty-state">
+                No cardio sessions logged yet. Walking calories are still estimated from
+                your steps.
+              </p>
             ) : (
               <div className="item-list">
                 {today.cardio.map((entry, index) => (
@@ -1594,6 +1619,10 @@ function App() {
         <section className="panel">
           <h2>Daily goals</h2>
           <p className="sync-status">{syncState}</p>
+          <p className="helper-text">
+            Walking calories use a simple estimate of about 40 calories per 1,000 steps,
+            so treat that number as a guide rather than an exact burn.
+          </p>
           <div className="form-grid">
             {Object.keys(defaultGoals).map(goal => (
               <label className="field-label" key={goal}>

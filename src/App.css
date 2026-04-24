@@ -372,6 +372,37 @@ select,
   line-height: 1.5;
 }
 
+.helper-text {
+  margin-top: -2px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.split-stat {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.split-stat div {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #121819;
+}
+
+.split-stat span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.split-stat strong {
+  font-size: 1rem;
+}
+
 .compact-button {
   min-height: 36px;
   padding: 0 12px;
@@ -549,5 +580,9 @@ select,
 
   .list-actions .icon-button {
     margin-left: auto;
+  }
+
+  .split-stat {
+    grid-template-columns: 1fr;
   }
 }
