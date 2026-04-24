@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { auth, db } from "./firebase";
 
 const defaultGoals = {
   calories: 2200,
@@ -22,6 +23,7 @@ const defaultDay = {
 };
 
 const WALKING_CALORIES_PER_STEP = 0.04;
+const CLOUD_BACKUP_PATH = ["fitnessBackups", "primary"];
 
 function safeJson(key, fallback) {
   try {
@@ -94,6 +96,17 @@ function formatDate(dateText) {
   return new Date(`${dateText}T12:00:00`).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric"
+  });
+}
+
+function formatDateTime(timestamp) {
+  if (!timestamp) return "";
+
+  return new Date(timestamp).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
   });
 }
 
@@ -439,7 +452,12 @@ function App() {
     ...defaultGoals,
     ...safeJson("dailyGoals", {})
   }));
-  const [syncState, setSyncState] = useState("Checking backup...");
+  const [syncState, setSyncState] = useState("Connecting cloud backup...");
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [cloudSyncAt, setCloudSyncAt] = useState(() =>
+    numberValue(localStorage.getItem("fitnessCloudSyncedAt"))
+  );
+  const [cloudAuthReady, setCloudAuthReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayString());
   const [page, setPage] = useState("dashboard");
   const [muscleGroup, setMuscleGroup] = useState("");
@@ -480,6 +498,7 @@ function App() {
     savedFoods,
     goals
   });
+  const cloudDocRef = useRef(doc(db, ...CLOUD_BACKUP_PATH));
 
   function persistLocalSnapshot(
     nextData,
@@ -495,83 +514,190 @@ function App() {
     localStorage.setItem("fitnessUpdatedAt", String(updatedAt));
   }
 
-  useEffect(() => {
-    let isActive = true;
+  function rememberCloudSync(updatedAt) {
+    localStorage.setItem("fitnessCloudSyncedAt", String(updatedAt));
+    setCloudSyncAt(updatedAt);
+  }
 
-    async function loadCloudBackup() {
-      try {
-        const remoteDoc = await getDoc(doc(db, "fitnessBackups", "primary"));
-        if (!isActive) return;
+  function buildBackupPayload(
+    nextData,
+    nextPresets,
+    nextSavedFoods,
+    nextGoals,
+    updatedAt
+  ) {
+    return {
+      data: nextData,
+      presets: nextPresets,
+      savedFoods: nextSavedFoods,
+      goals: nextGoals,
+      updatedAt
+    };
+  }
 
-        const localUpdatedAt = numberValue(
-          localStorage.getItem("fitnessUpdatedAt")
-        );
+  const applyRemoteSnapshot = useCallback((remoteData, remoteUpdatedAt, nextStatus) => {
+    const remoteGoals = {
+      ...defaultGoals,
+      ...(remoteData.goals || {})
+    };
 
-        if (remoteDoc.exists()) {
-          const remoteData = remoteDoc.data();
-          const remoteUpdatedAt = numberValue(remoteData.updatedAt);
+    skipCloudSaveRef.current = true;
+    persistLocalSnapshot(
+      remoteData.data || {},
+      remoteData.presets || {},
+      remoteData.savedFoods || [],
+      remoteGoals,
+      remoteUpdatedAt
+    );
+    setData(remoteData.data || {});
+    setPresets(remoteData.presets || {});
+    setSavedFoods(
+      Array.isArray(remoteData.savedFoods) ? remoteData.savedFoods : []
+    );
+    setGoals(remoteGoals);
+    rememberCloudSync(remoteUpdatedAt);
+    setSyncState(nextStatus);
+  }, []);
 
-          if (remoteUpdatedAt > localUpdatedAt) {
-            const remoteGoals = {
-              ...defaultGoals,
-              ...(remoteData.goals || {})
-            };
+  const writeCloudBackup = useCallback(async (
+    nextData,
+    nextPresets,
+    nextSavedFoods,
+    nextGoals,
+    updatedAt,
+    successMessage = "Cloud backup on"
+  ) => {
+    const payload = buildBackupPayload(
+      nextData,
+      nextPresets,
+      nextSavedFoods,
+      nextGoals,
+      updatedAt
+    );
 
-            skipCloudSaveRef.current = true;
-            persistLocalSnapshot(
-              remoteData.data || {},
-              remoteData.presets || {},
-              remoteData.savedFoods || [],
-              remoteGoals,
-              remoteUpdatedAt
-            );
-            setData(remoteData.data || {});
-            setPresets(remoteData.presets || {});
-            setSavedFoods(
-              Array.isArray(remoteData.savedFoods) ? remoteData.savedFoods : []
-            );
-            setGoals(remoteGoals);
-            setSyncState("Cloud backup restored");
-            hasLoadedCloudRef.current = true;
-            return;
-          }
-        }
+    await setDoc(cloudDocRef.current, payload, { merge: true });
+    rememberCloudSync(updatedAt);
+    setSyncState(successMessage);
+  }, []);
 
-        if (localUpdatedAt > 0) {
-          await setDoc(
-            doc(db, "fitnessBackups", "primary"),
-            {
-              data: initialSnapshotRef.current.data,
-              presets: initialSnapshotRef.current.presets,
-              savedFoods: initialSnapshotRef.current.savedFoods,
-              goals: initialSnapshotRef.current.goals,
-              updatedAt: localUpdatedAt
-            },
-            { merge: true }
-          );
-        }
-
-        if (isActive) {
-          setSyncState("Cloud backup on");
-        }
-      } catch {
-        if (isActive) {
-          setSyncState("Saved on this browser only");
-        }
-      } finally {
-        hasLoadedCloudRef.current = true;
-      }
+  const restoreFromCloud = useCallback(async (forceRestore = false) => {
+    if (!cloudAuthReady) {
+      setSyncState("Saved on this browser only");
+      return false;
     }
 
-    loadCloudBackup();
+    setSyncBusy(true);
+    setSyncState(forceRestore ? "Restoring cloud backup..." : "Checking cloud backup...");
+
+    try {
+      const remoteDoc = await getDoc(cloudDocRef.current);
+      const localUpdatedAt = numberValue(
+        localStorage.getItem("fitnessUpdatedAt")
+      );
+
+      if (remoteDoc.exists()) {
+        const remoteData = remoteDoc.data();
+        const remoteUpdatedAt = numberValue(remoteData.updatedAt);
+
+        if (remoteUpdatedAt > 0 && (forceRestore || remoteUpdatedAt > localUpdatedAt)) {
+          applyRemoteSnapshot(
+            remoteData,
+            remoteUpdatedAt,
+            forceRestore ? "Cloud backup restored" : "Cloud backup restored"
+          );
+          return true;
+        }
+      }
+
+      if (localUpdatedAt > 0) {
+        await writeCloudBackup(
+          initialSnapshotRef.current.data,
+          initialSnapshotRef.current.presets,
+          initialSnapshotRef.current.savedFoods,
+          initialSnapshotRef.current.goals,
+          localUpdatedAt
+        );
+      } else {
+        setSyncState("Cloud backup on");
+      }
+
+      return false;
+    } catch {
+      setSyncState("Saved on this browser only");
+      return false;
+    } finally {
+      hasLoadedCloudRef.current = true;
+      setSyncBusy(false);
+    }
+  }, [applyRemoteSnapshot, cloudAuthReady, writeCloudBackup]);
+
+  const syncNow = useCallback(async () => {
+    const updatedAt = Date.now();
+
+    persistLocalSnapshot(data, presets, savedFoods, goals, updatedAt);
+
+    if (!cloudAuthReady) {
+      setSyncState("Saved on this browser only");
+      return;
+    }
+
+    setSyncBusy(true);
+    setSyncState("Saving backup...");
+
+    try {
+      await writeCloudBackup(
+        data,
+        presets,
+        savedFoods,
+        goals,
+        updatedAt
+      );
+    } catch {
+      setSyncState("Saved on this browser only");
+    } finally {
+      setSyncBusy(false);
+    }
+  }, [cloudAuthReady, data, goals, presets, savedFoods, writeCloudBackup]);
+
+  useEffect(() => {
+    let isActive = true;
+    let signInAttempted = false;
+
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      if (!isActive) return;
+
+      if (user) {
+        setCloudAuthReady(true);
+        await restoreFromCloud();
+        return;
+      }
+
+      if (signInAttempted) {
+        return;
+      }
+
+      signInAttempted = true;
+      setSyncState("Connecting cloud backup...");
+
+      try {
+        await signInAnonymously(auth);
+      } catch {
+        if (isActive) {
+          hasLoadedCloudRef.current = true;
+          setCloudAuthReady(false);
+          setSyncState("Saved on this browser only");
+        }
+      }
+    });
 
     return () => {
       isActive = false;
+      unsubscribe();
     };
-  }, []);
+  }, [restoreFromCloud]);
 
   useEffect(() => {
-    if (!hasLoadedCloudRef.current) return;
+    if (!hasLoadedCloudRef.current || !cloudAuthReady) return;
 
     if (skipCloudSaveRef.current) {
       skipCloudSaveRef.current = false;
@@ -585,24 +711,22 @@ function App() {
 
     async function saveCloudBackup() {
       try {
+        setSyncBusy(true);
         setSyncState("Saving backup...");
-        await setDoc(
-          doc(db, "fitnessBackups", "primary"),
-          {
-            data,
-            presets,
-            savedFoods,
-            goals,
-            updatedAt
-          },
-          { merge: true }
+        await writeCloudBackup(
+          data,
+          presets,
+          savedFoods,
+          goals,
+          updatedAt
         );
-        if (isActive) {
-          setSyncState("Cloud backup on");
-        }
       } catch {
         if (isActive) {
           setSyncState("Saved on this browser only");
+        }
+      } finally {
+        if (isActive) {
+          setSyncBusy(false);
         }
       }
     }
@@ -612,7 +736,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [data, presets, savedFoods, goals]);
+  }, [cloudAuthReady, data, goals, presets, savedFoods, writeCloudBackup]);
 
   const today = normaliseDay(data[selectedDate]);
 
@@ -1708,6 +1832,27 @@ function App() {
         <section className="panel">
           <h2>Daily goals</h2>
           <p className="sync-status">{syncState}</p>
+          {cloudSyncAt > 0 && (
+            <p className="sync-meta">Last cloud sync {formatDateTime(cloudSyncAt)}</p>
+          )}
+          <div className="sync-actions">
+            <button
+              className="ghost-button compact-button"
+              type="button"
+              onClick={syncNow}
+              disabled={syncBusy}
+            >
+              {syncBusy ? "Working..." : "Sync now"}
+            </button>
+            <button
+              className="ghost-button compact-button"
+              type="button"
+              onClick={() => restoreFromCloud(true)}
+              disabled={syncBusy}
+            >
+              Restore cloud backup
+            </button>
+          </div>
           <p className="helper-text">
             Walking calories use a simple estimate of about 40 calories per 1,000 steps,
             so treat that number as a guide rather than an exact burn.
