@@ -212,16 +212,10 @@ select:focus,
 }
 
 .summary-grid .metric-card:nth-child(1) strong,
-.summary-grid .metric-card:nth-child(4) strong {
-  color: #fbfcfe;
-}
-
-.summary-grid .metric-card:nth-child(3) strong {
-  color: #8fdab7;
-}
-
+.summary-grid .metric-card:nth-child(3) strong,
+.summary-grid .metric-card:nth-child(4) strong,
 .summary-grid .metric-card:nth-child(5) strong {
-  color: #8fdab7;
+  color: #fbfcfe;
 }
 
 .panel {
@@ -290,7 +284,7 @@ select:focus,
 .primary-button,
 .icon-button,
 .chip {
-  min-height: 42px;
+  min-height: 46px;
   border-radius: 999px;
   font-weight: 600;
 }
@@ -300,6 +294,7 @@ select:focus,
   color: var(--text);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 16px;
 }
 
 .primary-button {
@@ -310,8 +305,9 @@ select:focus,
 }
 
 .icon-button {
-  flex: 0 0 38px;
-  width: 38px;
+  flex: 0 0 44px;
+  width: 44px;
+  padding: 0;
   color: var(--text);
   background: rgba(255, 107, 107, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -459,8 +455,8 @@ select:focus,
 }
 
 .compact-button {
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 16px;
   font-size: 0.8rem;
 }
 
