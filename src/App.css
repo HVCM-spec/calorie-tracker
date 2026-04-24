@@ -211,9 +211,7 @@ select:focus,
   line-height: 1;
 }
 
-.summary-grid .metric-card:nth-child(1) strong,
 .summary-grid .metric-card:nth-child(3) strong,
-.summary-grid .metric-card:nth-child(4) strong,
 .summary-grid .metric-card:nth-child(5) strong {
   color: #fbfcfe;
 }

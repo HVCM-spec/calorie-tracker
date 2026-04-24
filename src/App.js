@@ -318,10 +318,17 @@ function estimateMealLocally(description) {
 
 function ProgressBar({ label, value, target, unit }) {
   const percent = target > 0 ? Math.min((value / target) * 100, 100) : 0;
-  const progressRatio = target > 0 ? Math.min(value / target, 1) : 0;
-  const hue = Math.round(progressRatio * 120);
-  const startColor = `hsl(${Math.max(hue - 18, 0)} 75% 52%)`;
-  const endColor = `hsl(${hue} 68% 46%)`;
+  const progressRatio = target > 0 ? value / target : 0;
+  const isOverTarget = progressRatio > 1;
+  const cappedRatio = Math.min(progressRatio, 1);
+  const hue = Math.round(cappedRatio * 120);
+  const overRatio = Math.min(progressRatio - 1, 1);
+  const startColor = isOverTarget
+    ? `hsl(0 72% ${Math.max(58 - overRatio * 10, 48)}%)`
+    : `hsl(${Math.max(hue - 18, 0)} 70% 68%)`;
+  const endColor = isOverTarget
+    ? `hsl(0 68% ${Math.max(48 - overRatio * 12, 34)}%)`
+    : `hsl(${hue} 62% 56%)`;
 
   return (
     <div className="progress-line">
@@ -344,6 +351,20 @@ function ProgressBar({ label, value, target, unit }) {
       </div>
     </div>
   );
+}
+
+function getPastelMetricColor(value, target, { penalizeOverage = false } = {}) {
+  if (!target) return "#fbfcfe";
+
+  const progressRatio = value / target;
+  if (penalizeOverage && progressRatio > 1) {
+    const overRatio = Math.min(progressRatio - 1, 1);
+    return `hsl(0 68% ${Math.max(46 - overRatio * 12, 32)}%)`;
+  }
+
+  const cappedRatio = Math.min(progressRatio, 1);
+  const hue = Math.round(cappedRatio * 120);
+  return `hsl(${hue} 58% 74%)`;
 }
 
 function ProgressionChart({ points }) {
@@ -964,6 +985,13 @@ function App() {
   }
 
   const caloriesLeft = Math.max(goals.calories - nutritionTotals.calories, 0);
+  const caloriesMetricColor = getPastelMetricColor(
+    nutritionTotals.calories,
+    goals.calories,
+    { penalizeOverage: true }
+  );
+  const waterMetricColor = getPastelMetricColor(today.water, goals.water);
+  const stepsMetricColor = getPastelMetricColor(today.steps, goals.steps);
   return (
     <main className="app-shell">
       <header className="hero">
@@ -1004,12 +1032,12 @@ function App() {
           <div className="summary-grid">
             <article className="metric-card">
               <span>Calories left</span>
-              <strong>{caloriesLeft}</strong>
+              <strong style={{ color: caloriesMetricColor }}>{caloriesLeft}</strong>
               <small>{nutritionTotals.calories} eaten</small>
             </article>
             <article className="metric-card">
               <span>Water</span>
-              <strong>{today.water}ml</strong>
+              <strong style={{ color: waterMetricColor }}>{today.water}ml</strong>
               <small>{Math.round((today.water / goals.water) * 100) || 0}% goal</small>
             </article>
             <article className="metric-card">
@@ -1019,7 +1047,7 @@ function App() {
             </article>
             <article className="metric-card">
               <span>Steps</span>
-              <strong>{today.steps}</strong>
+              <strong style={{ color: stepsMetricColor }}>{today.steps}</strong>
               <small>{Math.round((today.steps / goals.steps) * 100) || 0}% goal</small>
             </article>
             <article className="metric-card">
