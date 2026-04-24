@@ -128,10 +128,15 @@ select:focus,
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  margin-bottom: 2px;
-  padding: 8px 4px 14px;
-  background: linear-gradient(180deg, rgba(5, 6, 8, 0.94), rgba(5, 6, 8, 0.76));
-  backdrop-filter: blur(20px) saturate(140%);
+  margin: 6px 0 10px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 10px 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(22px) saturate(140%);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
@@ -144,21 +149,29 @@ select:focus,
   flex: 0 0 auto;
   min-height: 38px;
   padding: 0 14px;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
   font-size: 0.81rem;
   font-weight: 600;
-  transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
 }
 
 .tab.is-active {
-  border-color: rgba(56, 196, 141, 0.18);
+  border-color: rgba(56, 196, 141, 0.22);
   color: var(--text);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.1)),
     var(--accent-tint);
+}
+
+.tab:active {
+  transform: translateY(0.5px);
 }
 
 .stack {
