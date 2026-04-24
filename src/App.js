@@ -318,6 +318,10 @@ function estimateMealLocally(description) {
 
 function ProgressBar({ label, value, target, unit }) {
   const percent = target > 0 ? Math.min((value / target) * 100, 100) : 0;
+  const progressRatio = target > 0 ? Math.min(value / target, 1) : 0;
+  const hue = Math.round(progressRatio * 120);
+  const startColor = `hsl(${Math.max(hue - 18, 0)} 75% 52%)`;
+  const endColor = `hsl(${hue} 68% 46%)`;
 
   return (
     <div className="progress-line">
@@ -330,7 +334,13 @@ function ProgressBar({ label, value, target, unit }) {
         </strong>
       </div>
       <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${percent}%` }} />
+        <div
+          className="progress-fill"
+          style={{
+            width: `${percent}%`,
+            background: `linear-gradient(90deg, ${startColor}, ${endColor})`
+          }}
+        />
       </div>
     </div>
   );
