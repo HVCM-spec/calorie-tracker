@@ -95,6 +95,225 @@ function formatDate(dateText) {
   });
 }
 
+const FOOD_LIBRARY = [
+  {
+    name: "egg",
+    aliases: ["egg", "eggs"],
+    unitLabel: "egg",
+    defaultAmount: 1,
+    nutrition: { calories: 78, protein: 6.3, carbs: 0.6, fat: 5.3 }
+  },
+  {
+    name: "toast",
+    aliases: ["toast", "slice of toast", "slices of toast", "bread", "slice of bread", "slices of bread"],
+    unitLabel: "slice",
+    defaultAmount: 1,
+    nutrition: { calories: 80, protein: 3, carbs: 15, fat: 1 }
+  },
+  {
+    name: "banana",
+    aliases: ["banana", "bananas"],
+    unitLabel: "banana",
+    defaultAmount: 1,
+    nutrition: { calories: 105, protein: 1.3, carbs: 27, fat: 0.4 }
+  },
+  {
+    name: "apple",
+    aliases: ["apple", "apples"],
+    unitLabel: "apple",
+    defaultAmount: 1,
+    nutrition: { calories: 95, protein: 0.5, carbs: 25, fat: 0.3 }
+  },
+  {
+    name: "oats",
+    aliases: ["oats", "porridge oats", "oatmeal"],
+    unitLabel: "serving",
+    defaultAmount: 1,
+    nutrition: { calories: 150, protein: 5, carbs: 27, fat: 3 }
+  },
+  {
+    name: "rice",
+    aliases: ["rice", "white rice", "brown rice"],
+    unitLabel: "cup",
+    defaultAmount: 1,
+    nutrition: { calories: 205, protein: 4.3, carbs: 45, fat: 0.4 }
+  },
+  {
+    name: "chicken breast",
+    aliases: ["chicken", "chicken breast", "grilled chicken", "chicken breasts"],
+    unitLabel: "portion",
+    defaultAmount: 1,
+    nutrition: { calories: 165, protein: 31, carbs: 0, fat: 3.6 }
+  },
+  {
+    name: "salmon",
+    aliases: ["salmon"],
+    unitLabel: "portion",
+    defaultAmount: 1,
+    nutrition: { calories: 208, protein: 20, carbs: 0, fat: 13 }
+  },
+  {
+    name: "beef mince",
+    aliases: ["beef", "beef mince", "ground beef", "mince"],
+    unitLabel: "portion",
+    defaultAmount: 1,
+    nutrition: { calories: 250, protein: 26, carbs: 0, fat: 17 }
+  },
+  {
+    name: "greek yogurt",
+    aliases: ["greek yogurt", "greek yoghurt", "yogurt", "yoghurt"],
+    unitLabel: "pot",
+    defaultAmount: 1,
+    nutrition: { calories: 130, protein: 15, carbs: 6, fat: 4 }
+  },
+  {
+    name: "milk",
+    aliases: ["milk", "whole milk", "semi skimmed milk", "skimmed milk"],
+    unitLabel: "cup",
+    defaultAmount: 1,
+    nutrition: { calories: 122, protein: 8, carbs: 12, fat: 5 }
+  },
+  {
+    name: "protein shake",
+    aliases: ["protein shake", "protein shake scoop", "protein powder", "whey protein"],
+    unitLabel: "scoop",
+    defaultAmount: 1,
+    nutrition: { calories: 120, protein: 24, carbs: 3, fat: 1.5 }
+  },
+  {
+    name: "peanut butter",
+    aliases: ["peanut butter"],
+    unitLabel: "tablespoon",
+    defaultAmount: 1,
+    nutrition: { calories: 95, protein: 4, carbs: 3.5, fat: 8 }
+  },
+  {
+    name: "avocado",
+    aliases: ["avocado"],
+    unitLabel: "half",
+    defaultAmount: 1,
+    nutrition: { calories: 120, protein: 1.5, carbs: 6, fat: 11 }
+  },
+  {
+    name: "potato",
+    aliases: ["potato", "potatoes", "baked potato"],
+    unitLabel: "potato",
+    defaultAmount: 1,
+    nutrition: { calories: 160, protein: 4, carbs: 37, fat: 0.2 }
+  },
+  {
+    name: "pasta",
+    aliases: ["pasta"],
+    unitLabel: "cup",
+    defaultAmount: 1,
+    nutrition: { calories: 220, protein: 8, carbs: 43, fat: 1.3 }
+  },
+  {
+    name: "cheese",
+    aliases: ["cheese", "cheddar", "mozzarella"],
+    unitLabel: "slice",
+    defaultAmount: 1,
+    nutrition: { calories: 113, protein: 7, carbs: 1, fat: 9 }
+  },
+  {
+    name: "coffee with milk",
+    aliases: ["coffee", "coffee with milk", "latte", "cappuccino"],
+    unitLabel: "cup",
+    defaultAmount: 1,
+    nutrition: { calories: 60, protein: 3, carbs: 5, fat: 3 }
+  }
+];
+
+const NUMBER_WORDS = {
+  a: 1,
+  an: 1,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10
+};
+
+function roundMacro(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function parseAmount(fragment, food) {
+  const numericMatch = fragment.match(/(\d+(?:\.\d+)?)/);
+  if (numericMatch) {
+    return Number(numericMatch[1]);
+  }
+
+  const word = fragment.split(" ").find(part => NUMBER_WORDS[part]);
+  if (word) {
+    return NUMBER_WORDS[word];
+  }
+
+  return food.defaultAmount;
+}
+
+function estimateMealLocally(description) {
+  const cleaned = description
+    .toLowerCase()
+    .replace(/\bwith\b/g, ",")
+    .replace(/\band\b/g, ",")
+    .replace(/\+/g, ",");
+
+  const parts = cleaned
+    .split(",")
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const matchedFoods = [];
+  const assumptions = [];
+
+  parts.forEach(part => {
+    const food = FOOD_LIBRARY.find(item =>
+      item.aliases.some(alias => part.includes(alias))
+    );
+
+    if (!food) {
+      assumptions.push(`Couldn't match "${part}", so it was left out.`);
+      return;
+    }
+
+    const amount = parseAmount(part, food);
+    matchedFoods.push({ food, amount });
+
+    if (!part.match(/(\d+(?:\.\d+)?)|\b(a|an|one|two|three|four|five|six|seven|eight|nine|ten)\b/)) {
+      assumptions.push(`Assumed 1 ${food.unitLabel} of ${food.name}.`);
+    }
+  });
+
+  if (matchedFoods.length === 0) {
+    throw new Error("I couldn't match any common foods in that meal yet.");
+  }
+
+  const totals = matchedFoods.reduce(
+    (sum, entry) => ({
+      calories: sum.calories + entry.food.nutrition.calories * entry.amount,
+      protein: sum.protein + entry.food.nutrition.protein * entry.amount,
+      carbs: sum.carbs + entry.food.nutrition.carbs * entry.amount,
+      fat: sum.fat + entry.food.nutrition.fat * entry.amount
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  return {
+    name: matchedFoods.map(entry => `${entry.amount} ${entry.food.name}`).join(", "),
+    calories: Math.round(totals.calories),
+    protein: roundMacro(totals.protein),
+    carbs: roundMacro(totals.carbs),
+    fat: roundMacro(totals.fat),
+    assumptions
+  };
+}
+
 function ProgressBar({ label, value, target, unit }) {
   const percent = target > 0 ? Math.min((value / target) * 100, 100) : 0;
 
@@ -465,20 +684,7 @@ function App() {
     setAiError("");
 
     try {
-      const response = await fetch("/api/estimate-macros", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ description })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Could not estimate that meal.");
-      }
-
+      const result = estimateMealLocally(description);
       setAiEstimate(result);
     } catch (error) {
       setAiEstimate(null);
@@ -938,7 +1144,7 @@ function App() {
           <section className="panel">
             <div className="section-heading">
               <h2>AI estimate</h2>
-              <span>Describe what you ate</span>
+              <span>Fast built-in food estimate</span>
             </div>
             <form className="form-grid" onSubmit={estimateMacros}>
               <textarea
@@ -949,7 +1155,7 @@ function App() {
                 rows="4"
               />
               <button className="primary-button" type="submit" disabled={aiLoading}>
-                {aiLoading ? "Estimating..." : "Estimate macros"}
+                {aiLoading ? "Estimating..." : "Estimate meal"}
               </button>
             </form>
             {aiError ? <p className="error-text">{aiError}</p> : null}
