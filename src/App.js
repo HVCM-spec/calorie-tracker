@@ -110,6 +110,20 @@ function formatDateTime(timestamp) {
   });
 }
 
+function syncErrorMessage(error) {
+  const code = error?.code || "";
+
+  if (code.includes("operation-not-allowed")) {
+    return "Cloud sign-in is not enabled yet";
+  }
+
+  if (code.includes("permission-denied")) {
+    return "Cloud backup permissions are blocking access";
+  }
+
+  return "Cloud backup could not connect";
+}
+
 const FOOD_LIBRARY = [
   {
     name: "egg",
@@ -458,6 +472,9 @@ function App() {
     numberValue(localStorage.getItem("fitnessCloudSyncedAt"))
   );
   const [cloudAuthReady, setCloudAuthReady] = useState(false);
+  const [syncDetail, setSyncDetail] = useState("");
+  const [transferText, setTransferText] = useState("");
+  const [transferStatus, setTransferStatus] = useState("");
   const [selectedDate, setSelectedDate] = useState(todayString());
   const [page, setPage] = useState("dashboard");
   const [muscleGroup, setMuscleGroup] = useState("");
@@ -535,6 +552,74 @@ function App() {
     };
   }
 
+  function currentBackupPayload(updatedAt = Date.now()) {
+    return {
+      app: "calorie-tracker",
+      version: 1,
+      ...buildBackupPayload(data, presets, savedFoods, goals, updatedAt)
+    };
+  }
+
+  function createTransferBackup() {
+    const updatedAt = Date.now();
+    const payload = currentBackupPayload(updatedAt);
+
+    persistLocalSnapshot(data, presets, savedFoods, goals, updatedAt);
+    setTransferText(JSON.stringify(payload));
+    setTransferStatus("Backup ready");
+  }
+
+  async function copyTransferBackup() {
+    const text = transferText || JSON.stringify(currentBackupPayload());
+
+    setTransferText(text);
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setTransferStatus("Backup copied");
+    } catch {
+      setTransferStatus("Backup ready to copy");
+    }
+  }
+
+  async function shareTransferBackup() {
+    const text = transferText || JSON.stringify(currentBackupPayload());
+
+    setTransferText(text);
+
+    if (!navigator.share) {
+      await copyTransferBackup();
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: "Fitness tracker backup",
+        text
+      });
+      setTransferStatus("Backup shared");
+    } catch {
+      setTransferStatus("Backup ready");
+    }
+  }
+
+  function importTransferBackup() {
+    try {
+      const parsedBackup = JSON.parse(transferText);
+      const updatedAt = numberValue(parsedBackup.updatedAt) || Date.now();
+
+      if (parsedBackup.app !== "calorie-tracker" || !parsedBackup.data) {
+        setTransferStatus("That backup does not look valid");
+        return;
+      }
+
+      applyRemoteSnapshot(parsedBackup, updatedAt, "Backup imported");
+      setTransferStatus("Backup imported");
+    } catch {
+      setTransferStatus("Paste a valid backup first");
+    }
+  }
+
   const applyRemoteSnapshot = useCallback((remoteData, remoteUpdatedAt, nextStatus) => {
     const remoteGoals = {
       ...defaultGoals,
@@ -583,10 +668,12 @@ function App() {
   const restoreFromCloud = useCallback(async (forceRestore = false) => {
     if (!cloudAuthReady) {
       setSyncState("Saved on this browser only");
+      setSyncDetail("Cloud sign-in has not connected");
       return false;
     }
 
     setSyncBusy(true);
+    setSyncDetail("");
     setSyncState(forceRestore ? "Restoring cloud backup..." : "Checking cloud backup...");
 
     try {
@@ -622,8 +709,9 @@ function App() {
       }
 
       return false;
-    } catch {
+    } catch (error) {
       setSyncState("Saved on this browser only");
+      setSyncDetail(syncErrorMessage(error));
       return false;
     } finally {
       hasLoadedCloudRef.current = true;
@@ -638,10 +726,12 @@ function App() {
 
     if (!cloudAuthReady) {
       setSyncState("Saved on this browser only");
+      setSyncDetail("Cloud sign-in has not connected");
       return;
     }
 
     setSyncBusy(true);
+    setSyncDetail("");
     setSyncState("Saving backup...");
 
     try {
@@ -652,8 +742,9 @@ function App() {
         goals,
         updatedAt
       );
-    } catch {
+    } catch (error) {
       setSyncState("Saved on this browser only");
+      setSyncDetail(syncErrorMessage(error));
     } finally {
       setSyncBusy(false);
     }
@@ -677,15 +768,17 @@ function App() {
       }
 
       signInAttempted = true;
+      setSyncDetail("");
       setSyncState("Connecting cloud backup...");
 
       try {
         await signInAnonymously(auth);
-      } catch {
+      } catch (error) {
         if (isActive) {
           hasLoadedCloudRef.current = true;
           setCloudAuthReady(false);
           setSyncState("Saved on this browser only");
+          setSyncDetail(syncErrorMessage(error));
         }
       }
     });
@@ -720,9 +813,10 @@ function App() {
           goals,
           updatedAt
         );
-      } catch {
+      } catch (error) {
         if (isActive) {
           setSyncState("Saved on this browser only");
+          setSyncDetail(syncErrorMessage(error));
         }
       } finally {
         if (isActive) {
@@ -1832,6 +1926,7 @@ function App() {
         <section className="panel">
           <h2>Daily goals</h2>
           <p className="sync-status">{syncState}</p>
+          {syncDetail && <p className="sync-detail">{syncDetail}</p>}
           {cloudSyncAt > 0 && (
             <p className="sync-meta">Last cloud sync {formatDateTime(cloudSyncAt)}</p>
           )}
@@ -1852,6 +1947,48 @@ function App() {
             >
               Restore cloud backup
             </button>
+          </div>
+          <div className="transfer-box">
+            <div className="section-heading">
+              <h2>Device transfer</h2>
+              {transferStatus && <span>{transferStatus}</span>}
+            </div>
+            <textarea
+              className="app-textarea transfer-textarea"
+              value={transferText}
+              onChange={event => setTransferText(event.target.value)}
+              placeholder="Create a backup on your laptop, then paste it here on your phone."
+            />
+            <div className="sync-actions">
+              <button
+                className="ghost-button compact-button"
+                type="button"
+                onClick={createTransferBackup}
+              >
+                Create backup
+              </button>
+              <button
+                className="ghost-button compact-button"
+                type="button"
+                onClick={copyTransferBackup}
+              >
+                Copy
+              </button>
+              <button
+                className="ghost-button compact-button"
+                type="button"
+                onClick={shareTransferBackup}
+              >
+                Share
+              </button>
+              <button
+                className="primary-button compact-button"
+                type="button"
+                onClick={importTransferBackup}
+              >
+                Import
+              </button>
+            </div>
           </div>
           <p className="helper-text">
             Walking calories use a simple estimate of about 40 calories per 1,000 steps,
