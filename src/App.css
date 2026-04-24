@@ -1,16 +1,18 @@
 :root {
   color-scheme: dark;
   --bg: #050608;
-  --panel: rgba(22, 24, 28, 0.72);
-  --panel-soft: rgba(255, 255, 255, 0.06);
-  --surface: rgba(255, 255, 255, 0.04);
-  --line: rgba(255, 255, 255, 0.1);
-  --line-strong: rgba(255, 255, 255, 0.2);
+  --panel: rgba(24, 27, 33, 0.82);
+  --panel-soft: rgba(255, 255, 255, 0.08);
+  --surface: rgba(255, 255, 255, 0.055);
+  --line: rgba(255, 255, 255, 0.13);
+  --line-strong: rgba(255, 255, 255, 0.24);
   --text: #f5f5f7;
   --muted: #a1a1a6;
   --accent: #38c48d;
   --accent-strong: #169f6e;
   --gold: #f2b84b;
+  --accent-tint: rgba(56, 196, 141, 0.18);
+  --gold-tint: rgba(242, 184, 75, 0.18);
   --danger: #ff6b6b;
 }
 
@@ -42,7 +44,7 @@ button {
   padding: 20px 14px 32px;
   color: var(--text);
   background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 28%),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.11), transparent 28%),
     linear-gradient(180deg, #0b0c10 0, var(--bg) 240px);
 }
 
@@ -56,7 +58,7 @@ button {
 
 .eyebrow {
   margin: 0 0 6px;
-  color: var(--muted);
+  color: rgba(244, 247, 251, 0.72);
   font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -104,9 +106,9 @@ input:focus,
 select:focus,
 .app-textarea:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
 }
 
 .app-textarea {
@@ -118,7 +120,7 @@ select:focus,
   width: 148px;
   color-scheme: dark;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .tab-bar {
@@ -144,19 +146,21 @@ select:focus,
   flex: 0 0 auto;
   min-height: 38px;
   padding: 0 14px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.03);
   border-radius: 999px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
   font-size: 0.81rem;
   font-weight: 600;
   transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
 }
 
 .tab.is-active {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(56, 196, 141, 0.18);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.1)),
+    var(--accent-tint);
 }
 
 .stack {
@@ -172,12 +176,12 @@ select:focus,
 
 .metric-card,
 .panel {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 18px;
   background: var(--panel);
   box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 18px 44px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(22px) saturate(140%);
 }
 
@@ -207,6 +211,19 @@ select:focus,
   font-size: 1.5rem;
   font-weight: 650;
   line-height: 1;
+}
+
+.summary-grid .metric-card:nth-child(1) strong,
+.summary-grid .metric-card:nth-child(4) strong {
+  color: #fbfcfe;
+}
+
+.summary-grid .metric-card:nth-child(3) strong {
+  color: #8fdab7;
+}
+
+.summary-grid .metric-card:nth-child(5) strong {
+  color: #f6c96a;
 }
 
 .panel {
@@ -251,7 +268,7 @@ select:focus,
   overflow: hidden;
   height: 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .progress-fill {
@@ -283,14 +300,15 @@ select:focus,
 .quick-actions button,
 .ghost-button {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .primary-button {
   color: #08150f;
   background: linear-gradient(180deg, #49cf9b, #2cb47d);
   border: 0;
+  box-shadow: 0 8px 24px rgba(44, 180, 125, 0.24);
 }
 
 .icon-button {
@@ -298,7 +316,7 @@ select:focus,
   width: 38px;
   color: var(--text);
   background: rgba(255, 107, 107, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .week-chart {
@@ -324,7 +342,7 @@ select:focus,
   height: 110px;
   overflow: hidden;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .bar-fill {
@@ -352,6 +370,7 @@ select:focus,
   padding: 10px;
   border-radius: 14px;
   background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .set-row span {
@@ -379,7 +398,7 @@ select:focus,
   padding: 12px;
   border-radius: 16px;
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .list-item div {
@@ -429,7 +448,7 @@ select:focus,
   padding: 12px;
   border-radius: 16px;
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .split-stat span {
@@ -459,7 +478,7 @@ select:focus,
   padding: 0 13px;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .field-label {
@@ -487,7 +506,7 @@ select:focus,
   padding: 14px;
   border-radius: 16px;
   background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ai-result-header {
@@ -508,7 +527,7 @@ select:focus,
   gap: 4px;
   padding: 12px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .ai-macro-grid span,
