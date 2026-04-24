@@ -395,6 +395,58 @@ select:focus,
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.workout-log-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.workout-log-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+}
+
+.workout-log-toggle {
+  color: rgba(143, 218, 183, 0.92);
+  font-size: 0.76rem;
+}
+
+.workout-set-breakdown {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.workout-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.workout-set-row strong {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.workout-set-row em {
+  color: var(--muted);
+  font-style: normal;
+}
+
 .list-item div {
   display: grid;
   gap: 4px;
@@ -628,6 +680,10 @@ select:focus,
     flex-direction: column;
   }
 
+  .workout-log-item {
+    grid-template-columns: 1fr;
+  }
+
   .list-actions {
     width: 100%;
   }
@@ -638,6 +694,15 @@ select:focus,
 
   .list-actions .icon-button {
     margin-left: auto;
+  }
+
+  .workout-log-item > .icon-button {
+    justify-self: end;
+  }
+
+  .workout-set-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .split-stat {

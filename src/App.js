@@ -424,6 +424,7 @@ function App() {
   const [muscleGroup, setMuscleGroup] = useState("");
   const [newGroup, setNewGroup] = useState("");
   const [exerciseInputs, setExerciseInputs] = useState({});
+  const [expandedWorkoutId, setExpandedWorkoutId] = useState(null);
 
   const [mealForm, setMealForm] = useState({
     name: "",
@@ -918,6 +919,7 @@ function App() {
         (workout, index) => (workout.id || index) !== id
       )
     }));
+    setExpandedWorkoutId(prev => (prev === id ? null : prev));
   }
 
   function addMuscleGroup(event) {
@@ -1124,26 +1126,56 @@ function App() {
             ) : (
               <div className="item-list">
                 {today.workouts.map((workout, index) => (
-                  <article className="list-item" key={workout.id || index}>
-                    <div>
-                      <strong>{workout.exercise}</strong>
-                      {(() => {
-                        const summary = getWorkoutSummary(workout);
-                        return (
-                          <span>
-                            {summary.setCount} sets, {summary.totalReps} reps,
-                            top {summary.topWeight}kg
-                          </span>
-                        );
-                      })()}
-                    </div>
+                  <article className="list-item workout-log-item" key={workout.id || index}>
+                    <button
+                      className="workout-log-button"
+                      type="button"
+                      onClick={() =>
+                        setExpandedWorkoutId(current =>
+                          current === (workout.id || index) ? null : workout.id || index
+                        )
+                      }
+                    >
+                      <div>
+                        <strong>{workout.exercise}</strong>
+                        {(() => {
+                          const summary = getWorkoutSummary(workout);
+                          const isExpanded = expandedWorkoutId === (workout.id || index);
+                          return (
+                            <>
+                              <span>
+                                {summary.setCount} sets, {summary.totalReps} reps,
+                                top {summary.topWeight}kg
+                              </span>
+                              <span className="workout-log-toggle">
+                                {isExpanded ? "Hide set details" : "Show set details"}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </button>
                     <button
                       aria-label={`Delete ${workout.exercise}`}
                       className="icon-button"
+                      type="button"
                       onClick={() => deleteWorkout(workout.id || index)}
                     >
                       x
                     </button>
+                    {expandedWorkoutId === (workout.id || index) ? (
+                      <div className="workout-set-breakdown">
+                        {getWorkoutSets(workout).map((set, setIndex) => (
+                          <div className="workout-set-row" key={`${workout.id || index}-${setIndex}`}>
+                            <span>Set {setIndex + 1}</span>
+                            <strong>
+                              {set.reps} reps
+                              <em>{set.weight}kg</em>
+                            </strong>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>
