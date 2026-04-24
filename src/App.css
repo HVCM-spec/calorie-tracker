@@ -10,9 +10,7 @@
   --muted: #a1a1a6;
   --accent: #38c48d;
   --accent-strong: #169f6e;
-  --gold: #f2b84b;
   --accent-tint: rgba(56, 196, 141, 0.18);
-  --gold-tint: rgba(242, 184, 75, 0.18);
   --danger: #ff6b6b;
 }
 
@@ -223,7 +221,7 @@ select:focus,
 }
 
 .summary-grid .metric-card:nth-child(5) strong {
-  color: #f6c96a;
+  color: #8fdab7;
 }
 
 .panel {
@@ -274,7 +272,7 @@ select:focus,
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--gold));
+  background: linear-gradient(90deg, #61d4a2, var(--accent-strong));
 }
 
 .quick-actions {
@@ -349,7 +347,7 @@ select:focus,
   width: 100%;
   min-height: 4px;
   border-radius: inherit;
-  background: linear-gradient(180deg, var(--gold), var(--accent-strong));
+  background: linear-gradient(180deg, #7fe0b3, var(--accent-strong));
 }
 
 .form-grid {
@@ -579,7 +577,7 @@ select:focus,
 }
 
 .chart-point {
-  fill: var(--gold);
+  fill: #9be3bf;
   stroke: #0b1112;
   stroke-width: 3;
 }
