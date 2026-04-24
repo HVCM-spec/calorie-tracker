@@ -351,6 +351,13 @@ select,
   min-width: 0;
 }
 
+.list-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .list-item strong,
 .list-item span {
   overflow-wrap: anywhere;
@@ -363,6 +370,12 @@ select,
 .empty-state {
   margin-bottom: 0;
   line-height: 1.5;
+}
+
+.compact-button {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.82rem;
 }
 
 .chip-list {
@@ -519,5 +532,22 @@ select,
 
   .set-row {
     grid-template-columns: 1fr;
+  }
+
+  .list-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .list-actions {
+    width: 100%;
+  }
+
+  .list-actions .compact-button {
+    flex: 1 1 0;
+  }
+
+  .list-actions .icon-button {
+    margin-left: auto;
   }
 }

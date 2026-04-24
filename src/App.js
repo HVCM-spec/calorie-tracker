@@ -401,6 +401,7 @@ function ProgressionChart({ points }) {
 function App() {
   const [data, setData] = useState(() => safeJson("gymData", {}));
   const [presets, setPresets] = useState(() => safeJson("presets", {}));
+  const [savedFoods, setSavedFoods] = useState(() => safeJson("savedFoods", []));
   const [goals, setGoals] = useState(() => ({
     ...defaultGoals,
     ...safeJson("dailyGoals", {})
@@ -441,12 +442,20 @@ function App() {
   const initialSnapshotRef = useRef({
     data,
     presets,
+    savedFoods,
     goals
   });
 
-  function persistLocalSnapshot(nextData, nextPresets, nextGoals, updatedAt) {
+  function persistLocalSnapshot(
+    nextData,
+    nextPresets,
+    nextSavedFoods,
+    nextGoals,
+    updatedAt
+  ) {
     localStorage.setItem("gymData", JSON.stringify(nextData));
     localStorage.setItem("presets", JSON.stringify(nextPresets));
+    localStorage.setItem("savedFoods", JSON.stringify(nextSavedFoods));
     localStorage.setItem("dailyGoals", JSON.stringify(nextGoals));
     localStorage.setItem("fitnessUpdatedAt", String(updatedAt));
   }
@@ -477,11 +486,15 @@ function App() {
             persistLocalSnapshot(
               remoteData.data || {},
               remoteData.presets || {},
+              remoteData.savedFoods || [],
               remoteGoals,
               remoteUpdatedAt
             );
             setData(remoteData.data || {});
             setPresets(remoteData.presets || {});
+            setSavedFoods(
+              Array.isArray(remoteData.savedFoods) ? remoteData.savedFoods : []
+            );
             setGoals(remoteGoals);
             setSyncState("Cloud backup restored");
             hasLoadedCloudRef.current = true;
@@ -495,6 +508,7 @@ function App() {
             {
               data: initialSnapshotRef.current.data,
               presets: initialSnapshotRef.current.presets,
+              savedFoods: initialSnapshotRef.current.savedFoods,
               goals: initialSnapshotRef.current.goals,
               updatedAt: localUpdatedAt
             },
@@ -530,7 +544,7 @@ function App() {
     }
 
     const updatedAt = Date.now();
-    persistLocalSnapshot(data, presets, goals, updatedAt);
+    persistLocalSnapshot(data, presets, savedFoods, goals, updatedAt);
 
     let isActive = true;
 
@@ -542,6 +556,7 @@ function App() {
           {
             data,
             presets,
+            savedFoods,
             goals,
             updatedAt
           },
@@ -562,7 +577,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [data, presets, goals]);
+  }, [data, presets, savedFoods, goals]);
 
   const today = normaliseDay(data[selectedDate]);
 
@@ -671,6 +686,17 @@ function App() {
       protein: String(numberValue(aiEstimate.protein)),
       carbs: String(numberValue(aiEstimate.carbs)),
       fat: String(numberValue(aiEstimate.fat))
+    });
+    setPage("nutrition");
+  }
+
+  function applySavedFoodToMeal(savedFood) {
+    setMealForm({
+      name: savedFood.name || "Saved food",
+      calories: String(numberValue(savedFood.calories)),
+      protein: String(numberValue(savedFood.protein)),
+      carbs: String(numberValue(savedFood.carbs)),
+      fat: String(numberValue(savedFood.fat))
     });
     setPage("nutrition");
   }
@@ -794,11 +820,51 @@ function App() {
     setMealForm({ name: "", calories: "", protein: "", carbs: "", fat: "" });
   }
 
+  function saveFoodPreset() {
+    if (!mealForm.name.trim() && !mealForm.calories) return;
+
+    const savedFood = {
+      id: crypto.randomUUID(),
+      name: mealForm.name.trim() || "Saved food",
+      calories: numberValue(mealForm.calories),
+      protein: numberValue(mealForm.protein),
+      carbs: numberValue(mealForm.carbs),
+      fat: numberValue(mealForm.fat)
+    };
+
+    setSavedFoods(prev => {
+      const withoutSameName = prev.filter(
+        entry => entry.name.toLowerCase() !== savedFood.name.toLowerCase()
+      );
+      return [savedFood, ...withoutSameName];
+    });
+  }
+
+  function addSavedFoodToDay(savedFood) {
+    const meal = {
+      id: crypto.randomUUID(),
+      name: savedFood.name,
+      calories: numberValue(savedFood.calories),
+      protein: numberValue(savedFood.protein),
+      carbs: numberValue(savedFood.carbs),
+      fat: numberValue(savedFood.fat)
+    };
+
+    updateDay(day => ({
+      ...day,
+      meals: [...day.meals, meal]
+    }));
+  }
+
   function deleteMeal(id) {
     updateDay(day => ({
       ...day,
       meals: day.meals.filter((meal, index) => (meal.id || index) !== id)
     }));
+  }
+
+  function deleteSavedFood(id) {
+    setSavedFoods(prev => prev.filter((food, index) => (food.id || index) !== id));
   }
 
   function saveWorkout(event) {
@@ -1143,6 +1209,56 @@ function App() {
         <section className="stack">
           <section className="panel">
             <div className="section-heading">
+              <h2>Saved foods</h2>
+              <span>{savedFoods.length} ready to add</span>
+            </div>
+            {savedFoods.length === 0 ? (
+              <p className="empty-state">
+                Save foods you eat often so you can add them in one tap.
+              </p>
+            ) : (
+              <div className="item-list">
+                {savedFoods.map((food, index) => (
+                  <article className="list-item" key={food.id || index}>
+                    <div>
+                      <strong>{food.name}</strong>
+                      <span>
+                        {food.calories} cal, P {food.protein}g, C {food.carbs}g, F{" "}
+                        {food.fat}g
+                      </span>
+                    </div>
+                    <div className="list-actions">
+                      <button
+                        className="ghost-button compact-button"
+                        type="button"
+                        onClick={() => applySavedFoodToMeal(food)}
+                      >
+                        Fill
+                      </button>
+                      <button
+                        className="primary-button compact-button"
+                        type="button"
+                        onClick={() => addSavedFoodToDay(food)}
+                      >
+                        Add
+                      </button>
+                      <button
+                        aria-label={`Delete ${food.name}`}
+                        className="icon-button"
+                        type="button"
+                        onClick={() => deleteSavedFood(food.id || index)}
+                      >
+                        x
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="panel">
+            <div className="section-heading">
               <h2>AI estimate</h2>
               <span>Fast built-in food estimate</span>
             </div>
@@ -1205,7 +1321,16 @@ function App() {
           </section>
 
           <section className="panel">
-            <h2>Add meal</h2>
+            <div className="section-heading">
+              <h2>Add meal</h2>
+              <button
+                className="ghost-button compact-button"
+                type="button"
+                onClick={saveFoodPreset}
+              >
+                Save as food
+              </button>
+            </div>
             <form className="form-grid" onSubmit={saveMeal}>
               <input
                 name="name"
