@@ -790,7 +790,7 @@ function App() {
   }, [restoreFromCloud]);
 
   useEffect(() => {
-    if (!hasLoadedCloudRef.current || !cloudAuthReady) return;
+    if (!hasLoadedCloudRef.current) return;
 
     if (skipCloudSaveRef.current) {
       skipCloudSaveRef.current = false;
@@ -799,6 +799,11 @@ function App() {
 
     const updatedAt = Date.now();
     persistLocalSnapshot(data, presets, savedFoods, goals, updatedAt);
+
+    if (!cloudAuthReady) {
+      setSyncState("Saved on this browser only");
+      return;
+    }
 
     let isActive = true;
 
